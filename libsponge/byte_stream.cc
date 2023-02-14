@@ -26,75 +26,62 @@ ByteStream::ByteStream(const size_t capacity)
 //{DUMMY_CODE(capacity);}
 
 size_t ByteStream::write(const string &data) {
-    size_t wrlen = data.size();
-    if (bstrlen == _capacity)  // stream full
-        return 0;
+    if(input_end_flag || bstrlen == _capacity) return 0;
+    uint64_t wrlen = data.size();
+    bool flag {true};
+    if (bstrlen == _capacity) return 0;  // stream full
     if (wrlen > remaining_capacity())  // can't write all the given data
+    {
         wrlen = remaining_capacity();
-
-    if ((eofidx + wrlen) > _capacity) {  // eofidx+wrlen超过了_capacity
-        int c1 = _capacity - eofidx;
-        int c2 = wrlen - c1;
-        bstream.replace(eofidx, c1, data.substr(0, c1));
-        bstream.replace(0, c2, data.substr(c1, c2));
-    } else {
-        bstream.replace(eofidx, wrlen, data.substr(0, wrlen));
+        flag = false;
+    }
+    if(eofidx > startidx) {                //eofidx on the right side of the startdix
+        if(_capacity - eofidx > wrlen) bstream.replace(eofidx, wrlen, data);        //the right side has adquate space for data being stored
+        else {
+            uint64_t c1 = _capacity - eofidx;
+            uint64_t c2 = wrlen - c1;
+            bstream.replace(bstream.begin()+eofidx, bstream.end()+eofidx+c1, std::string(data.begin(), data.begin()+c1));
+            //bstream.replace(eofidx, c1, data.substr(0, c1));
+            //bstream.replace(0, c2, data.substr(c1, c2));
+            bstream.replace(bstream.begin(), bstream.begin()+c2, std::string(data.begin()+c1, data.begin()+c1+c2));
+        }
+    }   
+    else {                                  //eofidx on the left
+        if(flag) bstream.replace(eofidx, wrlen, data);
+        else bstream.replace(eofidx, wrlen, data.substr(0, wrlen));
     }
     bswritten += wrlen;                     // update bswritten
-    eofidx = (eofidx + wrlen) % _capacity;  // update eofidx
     bstrlen += wrlen;                       // update bytestream length
-    // DUMMY_CODE(data);
+    eofidx = (eofidx + wrlen) % _capacity;  // update eofidx
     return wrlen;
 }
 
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
-    std::string res;
-    if (eofidx < (startidx + len) % _capacity) {  //
-        if (startidx >= eofidx)                   // startidx on the right of the eofidx
-        {
-            res.append(bstream.substr(startidx));
-            res.append(bstream.substr(0, startidx));
-        } else  // startidx on the left normal sequence
-        {
-            res.append(bstream.substr(startidx, bstrlen));
-        }
-    } else {
-        if (startidx >= eofidx) {
-            if ((startidx + len) > _capacity) {
-                res.append(bstream.substr(startidx));
-                res.append(bstream.substr(0, len - (_capacity - startidx)));
-            } else
-                res.append(bstream.substr(startidx, len));
-        } else
-            res.append(bstream.substr(startidx, len));
+    if(len == 0) return "";
+    uint64_t rlen = min(len, bstrlen);          //len < bstrlen ? len : bstrlen;
+    if(eofidx > startidx) return bstream.substr(startidx, rlen);
+    else if((eofidx == startidx && bstrlen != 0) || (eofidx < startidx)) {
+        if(startidx + rlen < _capacity) return std::string(bstream.begin()+startidx, bstream.begin()+startidx+rlen);
+        else return std::string(bstream.begin()+startidx, bstream.end())+std::string(bstream.begin(), bstream.begin() + startidx + rlen - _capacity);
+            //return std::string(bstream.substr(startidx)+bstream.substr(0, startidx + rlen - _capacity));
+        //return std::string(bstream.substr(startidx)+bstream.substr(0,startidx));
     }
-    // DUMMY_CODE(len);
-    return res;
+    else return "";
 }
 
 //! \param[in] len bytes will be removed from the output side of the buffer
 void ByteStream::pop_output(const size_t len) {  // DUMMY_CODE(len); }
-    if (len > bstrlen) {
+    if (len >= bstrlen) {
         startidx = 0;
         eofidx = 0;
-        bstrlen = 0;
         bsread += bstrlen;
+        bstrlen = 0;
     } else {
         startidx = (startidx + len) % _capacity;
         bstrlen -= len;
         bsread += len;
     }
-    // if(eofidx < (startidx+len)%_capacity) {      //len exceeds the total length of the bytestream, pop all
-    //    startidx = 0;
-    //    eofidx = 0;
-    //    bstrlen = 0;
-    //}
-    // else {
-    //    startidx = (startidx+len)%_capacity;
-    //    bstrlen -= len;
-    //}
-    // bsread += len;
     return;
 }
 
@@ -102,34 +89,21 @@ void ByteStream::pop_output(const size_t len) {  // DUMMY_CODE(len); }
 //! \param[in] len bytes will be popped and returned
 //! \returns a string
 std::string ByteStream::read(const size_t len) {
-    std::string res = peek_output(len);
-    // std::cout << res << "\n";
-    size_t length = res.size();
-
-    pop_output(length);
-    // DUMMY_CODE(len);
+    uint64_t rlen = min(len, bstrlen);
+    std::string res(this->peek_output(rlen));
+    this->pop_output(rlen);
     return res;
 }
 
-void ByteStream::end_input() { input_end_flag = 1; }
+void ByteStream::end_input() { input_end_flag = 1; return; }
 
 bool ByteStream::input_ended() const { return input_end_flag; }
 
 size_t ByteStream::buffer_size() const { return bstrlen; }
 
-bool ByteStream::buffer_empty() const {
-    if (bstrlen == 0)
-        return true;
-    else
-        return false;
-}
+bool ByteStream::buffer_empty() const { return bstrlen == 0; }
 
-bool ByteStream::eof() const {
-    if ((bstrlen == 0) && input_end_flag)
-        return true;
-    else
-        return false;
-}
+bool ByteStream::eof() const { return bstrlen == 0 && input_end_flag; }
 
 size_t ByteStream::bytes_written() const { return bswritten; }
 

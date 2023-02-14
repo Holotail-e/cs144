@@ -11,14 +11,14 @@
 class ByteStream {
   private:
     // Your code here -- add private members as necessary.
-    size_t _capacity;   // bstream maximum size
-    size_t bstrlen;     //当前bstream的长度
+    uint64_t _capacity;   // bstream maximum size
+    uint64_t bstrlen;     //当前bstream的长度
     uint64_t startidx;  // bstream中有效字符流的起始下标
     uint64_t eofidx;    // eof的下标，有效字符串最后下标+1
-    size_t bswritten;
-    size_t bsread;
+    uint64_t bswritten;
+    uint64_t bsread;
     std::string bstream;  // bstream长度设置为capacity
-    int input_end_flag;
+    bool input_end_flag;
     // Hint: This doesn't need to be a sophisticated data structure at
     // all, but if any of your tests are taking longer than a second,
     // that's a sign that you probably want to keep exploring

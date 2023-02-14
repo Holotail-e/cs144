@@ -16,16 +16,15 @@ class StreamReassembler {
 
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
-    std::string asm_seg;
+    std::string assembled_segment;
     std::vector<int> vflag;
     //std::vector<std::pair<int, int>> vline_tree;
     bool eof_flag;
-    uint64_t eofi;
-    uint64_t unasm_bytes;
-    uint64_t asm_bytes;
-    uint64_t maxsize;
-    uint64_t offset;
-    uint64_t maxindex;
+    uint64_t eof_index;
+    uint64_t unassembled_bytes_cnt;
+    uint64_t assembled_bytes;
+    uint64_t first_wait_byte_index_relative;     //range 0~_capacity-1
+    uint64_t first_wait_byte_index;              //absolute range
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.

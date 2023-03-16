@@ -43,10 +43,4 @@ uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
         return wrap_num * _INT32 + nofs;
     }
     else return nofs;
-    //uint64_t abs_sequence1 = nraw + (1ul << 32) - isnraw;
-    //uint64_t abs_sequence2 = nraw - isnraw;
-    //isn64 + n64 > checkpoint
-
-    //if(dis1 > dis2) return abs_sequence2;
-    //else return abs_sequence1;
 }

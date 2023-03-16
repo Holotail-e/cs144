@@ -21,34 +21,26 @@ ByteStream::ByteStream(const size_t capacity)
     , bsread(0)
     , bstream(capacity, 0)
     , input_end_flag(false) {
-    // bstream.resize(capacity);           //重新设置bstream大小
 }
-//{DUMMY_CODE(capacity);}
+
 
 size_t ByteStream::write(const string &data) {
-    if(input_end_flag || bstrlen == _capacity) return 0;
+    if(input_end_flag || !(bstrlen ^ _capacity)) return 0;
     uint64_t wrlen = data.size();
-    bool flag {true};
-    if (bstrlen == _capacity) return 0;  // stream full
-    if (wrlen > remaining_capacity())  // can't write all the given data
-    {
-        wrlen = remaining_capacity();
-        flag = false;
-    }
+    if (!(bstrlen ^ _capacity)) return 0;  // stream full
+    wrlen = min(remaining_capacity(), wrlen);// can't write all the given data
+
     if(eofidx > startidx) {                //eofidx on the right side of the startdix
         if(_capacity - eofidx > wrlen) bstream.replace(eofidx, wrlen, data);        //the right side has adquate space for data being stored
         else {
             uint64_t c1 = _capacity - eofidx;
             uint64_t c2 = wrlen - c1;
-            bstream.replace(bstream.begin()+eofidx, bstream.end()+eofidx+c1, std::string(data.begin(), data.begin()+c1));
-            //bstream.replace(eofidx, c1, data.substr(0, c1));
-            //bstream.replace(0, c2, data.substr(c1, c2));
-            bstream.replace(bstream.begin(), bstream.begin()+c2, std::string(data.begin()+c1, data.begin()+c1+c2));
+            bstream.replace(eofidx, c1, data.substr(0, c1));
+            bstream.replace(0, c2, data.substr(c1, c2));
         }
     }   
     else {                                  //eofidx on the left
-        if(flag) bstream.replace(eofidx, wrlen, data);
-        else bstream.replace(eofidx, wrlen, data.substr(0, wrlen));
+        bstream.replace(eofidx, wrlen, data.substr(0, wrlen));
     }
     bswritten += wrlen;                     // update bswritten
     bstrlen += wrlen;                       // update bytestream length
@@ -59,13 +51,11 @@ size_t ByteStream::write(const string &data) {
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
     if(len == 0) return "";
-    uint64_t rlen = min(len, bstrlen);          //len < bstrlen ? len : bstrlen;
+    uint64_t rlen = min(len, bstrlen);         
     if(eofidx > startidx) return bstream.substr(startidx, rlen);
-    else if((eofidx == startidx && bstrlen != 0) || (eofidx < startidx)) {
-        if(startidx + rlen < _capacity) return std::string(bstream.begin()+startidx, bstream.begin()+startidx+rlen);
-        else return std::string(bstream.begin()+startidx, bstream.end())+std::string(bstream.begin(), bstream.begin() + startidx + rlen - _capacity);
-            //return std::string(bstream.substr(startidx)+bstream.substr(0, startidx + rlen - _capacity));
-        //return std::string(bstream.substr(startidx)+bstream.substr(0,startidx));
+    else if((eofidx == startidx && bstrlen) || (eofidx < startidx)) {
+        if(startidx + rlen < _capacity) return bstream.substr(startidx, rlen);
+        else return bstream.substr(startidx).append(bstream.substr(0,startidx+rlen-_capacity));
     }
     else return "";
 }

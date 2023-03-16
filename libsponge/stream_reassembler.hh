@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <map>
+
 //#include <vector>
 //#include <algorithm>
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
@@ -13,25 +15,30 @@
 class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
-
+    typedef struct Node{
+    uint64_t start_index;
+    uint64_t last_index;
+    uint64_t slength;
+    std::string subsegment;
+    } Segnode;
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
-    std::string assembled_segment;
-    std::vector<int> vflag;
-    //std::vector<std::pair<int, int>> vline_tree;
-    bool eof_flag;
-    uint64_t eof_index;
-    uint64_t unassembled_bytes_cnt;
-    uint64_t assembled_bytes;
-    uint64_t first_wait_byte_index_relative;     //range 0~_capacity-1
-    uint64_t first_wait_byte_index;              //absolute range
-
+    std::map<uint64_t, Segnode> _map_block;
+    bool eof_flag {false};                                //eof segment received
+    uint64_t _eof_index {0};                           //the eof index
+    uint64_t _unassembled_count {0};
+    uint64_t _first_unassembled {0};
+    uint64_t _first_unaccepted;     //the index of the first unaccepted byte (outside the range of _capacity window)
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,
     //! and those that have not yet been reassembled.
     StreamReassembler(const size_t capacity);
 
+
+    void block_insert(uint64_t stratindex, uint64_t endindex, uint64_t datasize, const std::string &data);
+    //void write_output(std::map<uint64, Segnode>::iterator block_iterator, uint_64 writelen, bool del);
+    
     //! \brief Receive a substring and write any newly contiguous bytes into the stream.
     //!
     //! The StreamReassembler will stay within the memory limits of the `capacity`.

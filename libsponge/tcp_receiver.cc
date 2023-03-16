@@ -11,29 +11,31 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 void TCPReceiver::segment_received(const TCPSegment &seg) {
-    //DUMMY_CODE(seg);
-    
-    const TCPHeader &tcp_header = seg.header();
-    if(tcp_header.syn) {
-        seq_set = true;
-        initial_seq_num = tcp_header.seqno;
+    TCPHeader header = seg.header();
+    if (_syn_flag == false){
+        if (header.syn == false)
+            return ;
+        _syn_flag = true;
+        _isn = header.seqno;
+        // 这里不能直接 return，它的测试数据中 syn 为 true 时是可以带有数据的
+        //return;
     }
-    if(!seq_set) return;                    //SYN not set discard segment
-
-    uint64_t abs_ackno = _reassembler.stream_out().bytes_written() + 1;
-    uint64_t current_absseq = unwrap(tcp_header.seqno, initial_seq_num, abs_ackno);
-    uint64_t index = current_absseq - 1 + (tcp_header.syn);
-    _reassembler.push_substring(seg.payload().copy(), index, tcp_header.fin);
-    return;
+    string data = seg.payload().copy();
+    _check_point = unwrap(header.seqno, _isn, _check_point);
+    // 这里当 header.syn 为 true 时也要占据一个 seqno，而 push_substring 中的 index 是 stream index 而不是 absolute seqno
+    // 因此，当 syn 为 true 时不需要减一，而当 syn 为 false 时需要减一
+    size_t index = header.syn ? _check_point : _check_point - 1;
+    _reassembler.push_substring(data, index, header.fin);
 }
 
-optional<WrappingInt32> TCPReceiver::ackno() const { 
-    if(!seq_set)                //SYN not set
+optional<WrappingInt32> TCPReceiver::ackno() const {
+    if (_syn_flag == false)
         return nullopt;
-    
-    uint64_t abs_ack = _reassembler.stream_out().bytes_written() + 1;
-    if(_reassembler.stream_out().input_ended())
-        ++abs_ack;
-    return WrappingInt32(initial_seq_num) + abs_ack;
+    uint64_t abs_ackno = _reassembler.stream_out().bytes_written() + 1;
+    // 这里当 header.fin 为 true 时也要占据一个 seqno ，因此有下面的判断，并且要加一
+    if (_reassembler.stream_out().input_ended() == true)
+        abs_ackno++;
+    return _isn + abs_ackno; // add the syn
 }
-size_t TCPReceiver::window_size() const { return _capacity - _reassembler.stream_out().buffer_size(); }
+
+size_t TCPReceiver::window_size() const { return stream_out().remaining_capacity(); }

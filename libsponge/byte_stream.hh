@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 //! \brief An in-order byte stream.
 
 //! Bytes are written on the "input" side and read from the "output"
